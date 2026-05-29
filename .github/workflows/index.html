@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cari Koordinat GPS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3347;
+  --accent:#4ade80;--accent2:#22d3ee;--text:#e8eaf6;--muted:#7b82a0;
+  --danger:#f87171;--warning:#fbbf24;--radius:12px;
+  --mono:'IBM Plex Mono',monospace;--sans:'Plus Jakarta Sans',sans-serif;
+}
+body{
+  font-family:var(--sans);background:var(--bg);color:var(--text);
+  min-height:100vh;padding:1.5rem 1rem 3rem;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 10% 10%,rgba(74,222,128,0.06) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 80%,rgba(34,211,238,0.05) 0%,transparent 60%);
+}
+.wrap{max-width:680px;margin:0 auto}
+header{margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)}
+.logo-row{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+h1{font-size:19px;font-weight:600;letter-spacing:-0.02em}
+.sub{font-size:12px;color:var(--muted);margin-left:50px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem}
+.slabel{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px}
+
+/* PANDUAN */
+.panduan{background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.18);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1rem}
+.panduan-title{font-size:12px;font-weight:600;color:var(--accent2);margin-bottom:10px}
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:500px){.pg{grid-template-columns:1fr}}
+.pi{background:rgba(255,255,255,0.03);border:1px solid rgba(34,211,238,0.1);border-radius:8px;padding:8px 10px;cursor:pointer;transition:border-color 0.15s}
+.pi:hover{border-color:rgba(34,211,238,0.45);background:rgba(34,211,238,0.04)}
+.pi-label{font-size:10px;color:var(--muted);margin-bottom:3px}
+.pi-val{font-size:12px;color:var(--text);line-height:1.4;font-family:var(--mono)}
+
+/* TIPS */
+.tips{background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.22);border-radius:8px;padding:10px 14px;margin-bottom:12px}
+.tips p{font-size:12px;color:var(--warning);line-height:1.75;margin:0}
+.tips b{color:#fde68a}
+
+textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--sans);font-size:14px;padding:12px;resize:vertical;line-height:1.6;transition:border-color 0.2s;outline:none}
+textarea:focus{border-color:var(--accent)}
+textarea::placeholder{color:var(--muted)}
+
+.brow{display:flex;gap:8px;margin-top:10px}
+button{font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;border-radius:8px;border:1px solid var(--border);transition:all 0.15s;padding:9px 16px;display:flex;align-items:center;gap:6px;background:transparent;color:var(--text)}
+.bp{background:var(--accent);color:#0a1a0f;border-color:var(--accent);flex:1;justify-content:center}
+.bp:hover{filter:brightness(1.08)}
+.bp:active{transform:scale(0.98)}
+.bp:disabled{opacity:0.4;cursor:not-allowed}
+.bg2{color:var(--muted)}
+.bg2:hover{background:var(--surface2);color:var(--text)}
+
+.spin{display:none;padding:1.25rem;color:var(--muted);font-size:13px}
+.spin.show{display:flex;align-items:center;gap:10px}
+.sc{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:rot 0.7s linear infinite;flex-shrink:0}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+.rcard{display:none;animation:fi 0.3s ease}
+.rcard.show{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(max-width:400px){.cgrid{grid-template-columns:1fr}}
+.cbox{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.clabel{font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.cdot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.dlat{background:var(--accent)}.dlng{background:var(--accent2)}
+.cval{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text)}
+.abox{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.atxt{font-size:13px;color:var(--muted);line-height:1.6}
+.arow{display:flex;gap:8px;flex-wrap:wrap}
+.ba{background:var(--surface2);font-size:12px;padding:8px 14px;border:1px solid var(--border)}
+.ba:hover{border-color:var(--accent);color:var(--accent)}
+.ba.ok{border-color:var(--accent);color:var(--accent)}
+#map{height:220px;border-radius:8px;border:1px solid var(--border);margin-top:12px;display:none}
+#map.show{display:block}
+
+.ebox{display:none;border-radius:8px;padding:12px 14px;margin-top:10px;font-size:13px;line-height:1.7;white-space:pre-line}
+.ebox.show{display:block}
+.ed{background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);color:var(--danger)}
+.ew{background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.3);color:var(--warning)}
+
+#hcard{display:none}
+.hi{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-radius:8px;cursor:pointer;transition:background 0.15s;gap:12px}
+.hi:hover{background:var(--surface2)}
+.hinfo{flex:1;min-width:0}
+.ha{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hc{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px}
+.bdel{background:transparent;border:none;color:var(--muted);font-size:18px;padding:4px 6px;cursor:pointer;border-radius:4px;line-height:1}
+.bdel:hover{color:var(--danger);background:rgba(248,113,113,0.1)}
+
+footer{margin-top:2rem;text-align:center;font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="logo-row">
+    <div class="logo-icon">📍</div>
+    <h1>Cari Koordinat GPS</h1>
+  </div>
+  <p class="sub">Masukkan alamat → dapat Latitud &amp; Longitud</p>
+</header>
+
+<div class="panduan">
+  <div class="panduan-title">💡 Contoh format alamat — klik untuk guna</div>
+  <div class="pg">
+    <div class="pi" onclick="guna(this)">
+      <div class="pi-label">Pejabat kerajaan</div>
+      <div class="pi-val">Jabatan Perangkaan Malaysia, Putrajaya</div>
+    </div>
+    <div class="pi" onclick="guna(this)">
+      <div class="pi-label">Nombor rumah + jalan</div>
+      <div class="pi-val">No 5 Jalan Ampang, Kuala Lumpur</div>
+    </div>
+    <div class="pi" onclick="guna(this)">
+      <div class="pi-label">Nama taman + bandar</div>
+      <div class="pi-val">Taman Sri Muda, Shah Alam, Selangor</div>
+    </div>
+    <div class="pi" onclick="guna(this)">
+      <div class="pi-label">Nama tempat terkenal</div>
+      <div class="pi-val">Hospital Shah Alam, Selangor</div>
+    </div>
+    <div class="pi" onclick="guna(this)">
+      <div class="pi-label">Poskod + bandar</div>
+      <div class="pi-val">40150 Shah Alam, Selangor</div>
+    </div>
+    <div class="pi" onclick="guna(this)">
+      <div class="pi-label">Kawasan + negeri</div>
+      <div class="pi-val">Klang, Selangor, Malaysia</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="slabel">Masukkan Alamat</div>
+  <div class="tips">
+    <p>
+      ✅ <b>Format terbaik:</b> Nama tempat + nama kawasan + negeri<br>
+      ✅ <b>Tulis penuh:</b> "Jalan" bukan "Jln" &nbsp;|&nbsp; "Taman" bukan "Tmn" &nbsp;|&nbsp; "Kampung" bukan "Kg"<br>
+      ✅ <b>Tambah nama negeri</b> jika nama tempat sama di banyak kawasan<br>
+      ❌ <b>Elak singkatan</b> seperti Jln, Tmn, Kg, Bt, Lrg, Pkt — tulis penuh
+    </p>
+  </div>
+  <textarea id="alamat" rows="3" placeholder="Contoh: Sekolah Kebangsaan Bukit Jelutong, Shah Alam, Selangor"></textarea>
+  <div class="brow">
+    <button class="bg2" onclick="clearAll()">Padam</button>
+    <button class="bp" id="btnCari" onclick="cari()">🔍 Cari Koordinat</button>
+  </div>
+  <div id="err" class="ebox"></div>
+</div>
+
+<div class="spin" id="loading">
+  <div class="sc"></div>
+  <span id="lmsg">Sedang mencari koordinat...</span>
+</div>
+
+<div class="card rcard" id="result">
+  <div class="slabel">Keputusan</div>
+  <div class="cgrid">
+    <div class="cbox">
+      <div class="clabel"><span class="cdot dlat"></span>Latitud</div>
+      <div class="cval" id="latV">—</div>
+    </div>
+    <div class="cbox">
+      <div class="clabel"><span class="cdot dlng"></span>Longitud</div>
+      <div class="cval" id="lngV">—</div>
+    </div>
+  </div>
+  <div class="abox">
+    <div class="clabel">Alamat disahkan oleh sistem</div>
+    <div class="atxt" id="apenuh"></div>
+  </div>
+  <div class="arow">
+    <button class="ba" id="bsalin" onclick="salinCoord()">📋 Salin Koordinat</button>
+    <button class="ba" onclick="salinSemua()">📄 Salin Semua</button>
+    <button class="ba" onclick="bkGmaps()">🗺️ Google Maps</button>
+    <button class="ba" onclick="bkWaze()">🚗 Waze</button>
+  </div>
+  <div id="map"></div>
+</div>
+
+<div class="card" id="hcard">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div class="slabel" style="margin:0">Carian terkini</div>
+    <button class="bg2" style="font-size:12px;padding:4px 10px" onclick="clearHist()">Padam semua</button>
+  </div>
+  <div id="hlist"></div>
+</div>
+
+<footer>📡 Data: OpenStreetMap Nominatim &bull; © OpenStreetMap contributors</footer>
+
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let lmap=null,lmark=null,cLat=null,cLng=null;
+const HK='kgps_v3';
+
+function expand(a){
+  return a
+    .replace(/\bJln\.?\b/gi,'Jalan').replace(/\bTmn\.?\b/gi,'Taman')
+    .replace(/\bKg\.?\b/gi,'Kampung').replace(/\bKpg\.?\b/gi,'Kampung')
+    .replace(/\bBt\.?\b/gi,'Batu').replace(/\bLrg\.?\b/gi,'Lorong')
+    .replace(/\bPkt\.?\b/gi,'Peket').replace(/\bPrk\.?\b/gi,'Perak')
+    .replace(/\bSlgor\.?\b/gi,'Selangor').replace(/\b\bS\.?Alam\b/gi,'Shah Alam')
+    .replace(/\bKL\b/g,'Kuala Lumpur').replace(/\bPJ\b/g,'Petaling Jaya')
+    .replace(/\bSA\b/g,'Shah Alam').replace(/\bSK\b/g,'Sekolah Kebangsaan')
+    .replace(/\bSMK\b/g,'Sekolah Menengah Kebangsaan').replace(/\bMSIA\b/gi,'Malaysia');
+}
+
+function variants(raw){
+  const e=expand(raw.trim());
+  const hasMY=/malaysia/i.test(e);
+  const v=[e];
+  if(!hasMY) v.push(e+', Malaysia');
+  const noNo=e.replace(/^No\.?\s*\d+[A-Za-z]?\s*[,\s]+/i,'');
+  if(noNo!==e){v.push(noNo);if(!hasMY)v.push(noNo+', Malaysia');}
+  return [...new Set(v)];
+}
+
+async function nom(q){
+  const u=`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=3&addressdetails=1&accept-language=ms,en&countrycodes=my`;
+  const r=await fetch(u,{headers:{'User-Agent':'KoordinatApp/2.0 (DOSM Selangor)'}});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json();
+}
+
+function wait(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function getH(){try{return JSON.parse(localStorage.getItem(HK))||[];}catch{return[];}}
+
+function saveH(lat,lng,q,full){
+  let h=getH().filter(x=>x.q!==q.substring(0,80));
+  h.unshift({lat,lng,q:q.substring(0,80),full,t:Date.now()});
+  localStorage.setItem(HK,JSON.stringify(h.slice(0,15)));
+  renderH();
+}
+
+function renderH(){
+  const h=getH();
+  const c=document.getElementById('hcard');
+  const l=document.getElementById('hlist');
+  if(!h.length){c.style.display='none';return;}
+  c.style.display='block';
+  l.innerHTML=h.map((x,i)=>`
+    <div class="hi" onclick="loadH(${i})">
+      <div class="hinfo">
+        <div class="ha">${x.q}</div>
+        <div class="hc">${x.lat}, ${x.lng}</div>
+      </div>
+      <button class="bdel" onclick="delH(event,${i})">×</button>
+    </div>`).join('');
+}
+
+function loadH(i){const x=getH()[i];document.getElementById('alamat').value=x.q;show(x.lat,x.lng,x.full);}
+function delH(e,i){e.stopPropagation();let h=getH();h.splice(i,1);localStorage.setItem(HK,JSON.stringify(h));renderH();}
+function clearHist(){localStorage.removeItem(HK);renderH();}
+
+async function cari(){
+  const raw=document.getElementById('alamat').value.trim();
+  const errEl=document.getElementById('err');
+  const ld=document.getElementById('loading');
+  const res=document.getElementById('result');
+  const btn=document.getElementById('btnCari');
+  const lmsg=document.getElementById('lmsg');
+
+  errEl.className='ebox';
+  res.className='card rcard';
+
+  if(!raw){
+    errEl.textContent='⚠️ Sila masukkan alamat terlebih dahulu.';
+    errEl.className='ebox show ed';
+    return;
+  }
+
+  btn.disabled=true;
+  ld.className='spin show';
+
+  try{
+    const vs=variants(raw);
+    let data=null;
+    for(let i=0;i<vs.length;i++){
+      lmsg.textContent=i===0?'Sedang mencari koordinat...':i===1?'Cuba tambah "Malaysia"...':'Cuba variasi alamat...';
+      data=await nom(vs[i]);
+      if(data&&data.length)break;
+      if(i<vs.length-1)await wait(600);
+    }
+
+    ld.className='spin';
+    btn.disabled=false;
+
+    if(!data||!data.length){
+      errEl.className='ebox show ew';
+      errEl.textContent=`❌ Alamat tidak dijumpai. Cuba cara berikut:\n\n• Tulis nama penuh: "Jalan" bukan "Jln", "Taman" bukan "Tmn"\n• Tambah nama bandar dan negeri di belakang\n• Guna nama tempat yang lebih dikenali ramai\n• Cuba dengan poskod sahaja (contoh: 40150 Shah Alam)\n• Pastikan ejaan betul`;
+      return;
+    }
+
+    const r=data[0];
+    const lat=parseFloat(r.lat).toFixed(6);
+    const lng=parseFloat(r.lon).toFixed(6);
+    saveH(lat,lng,raw,r.display_name);
+    show(lat,lng,r.display_name);
+
+  }catch(e){
+    ld.className='spin';
+    btn.disabled=false;
+    errEl.className='ebox show ed';
+    errEl.textContent='❌ Ralat sambungan. Pastikan ada akses internet dan cuba semula.\n\nDetail: '+e.message;
+  }
+}
+
+function show(lat,lng,full){
+  cLat=lat;cLng=lng;
+  document.getElementById('latV').textContent=lat;
+  document.getElementById('lngV').textContent=lng;
+  document.getElementById('apenuh').textContent=full;
+  document.getElementById('result').className='card rcard show';
+  document.getElementById('err').className='ebox';
+
+  const m=document.getElementById('map');
+  m.className='show';
+  setTimeout(()=>{
+    if(!lmap){
+      lmap=L.map('map',{zoomControl:true,scrollWheelZoom:false}).setView([lat,lng],16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(lmap);
+    }else{lmap.setView([lat,lng],16);}
+    if(lmark)lmap.removeLayer(lmark);
+    lmark=L.marker([lat,lng]).addTo(lmap)
+      .bindPopup(`<b>${lat}, ${lng}</b><br><small>${full.substring(0,70)}...</small>`)
+      .openPopup();
+    lmap.invalidateSize();
+  },150);
+}
+
+function salinCoord(){
+  if(!cLat)return;
+  navigator.clipboard.writeText(`${cLat}, ${cLng}`).then(()=>{
+    const b=document.getElementById('bsalin');
+    b.textContent='✅ Disalin!';b.className='ba ok';
+    setTimeout(()=>{b.textContent='📋 Salin Koordinat';b.className='ba';},2000);
+  });
+}
+
+function salinSemua(){
+  if(!cLat)return;
+  const full=document.getElementById('apenuh').textContent;
+  navigator.clipboard.writeText(`Alamat: ${full}\nLatitud: ${cLat}\nLongitud: ${cLng}\nGoogle Maps: https://maps.google.com/?q=${cLat},${cLng}`);
+}
+
+function bkGmaps(){if(cLat)window.open(`https://www.google.com/maps?q=${cLat},${cLng}`,'_blank');}
+function bkWaze(){if(cLat)window.open(`https://waze.com/ul?ll=${cLat},${cLng}&navigate=yes`,'_blank');}
+
+function clearAll(){
+  document.getElementById('alamat').value='';
+  document.getElementById('err').className='ebox';
+  document.getElementById('result').className='card rcard';
+  document.getElementById('map').className='';
+  cLat=null;cLng=null;
+}
+
+function guna(el){
+  document.getElementById('alamat').value=el.querySelector('.pi-val').textContent;
+  document.getElementById('alamat').focus();
+}
+
+document.getElementById('alamat').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();cari();}
+});
+
+renderH();
+</script>
+</body>
+</html>
